@@ -35,13 +35,7 @@ jobs:
 
       - name: Get release info
         id: release
-        run: echo "::set-output name=ref::$(git rev-parse HEAD)"
-
-      - name: Create source tarball
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p target/release
-          tar --exclude=.cargo_home --exclude=".git*" --exclude=target --exclude=third_party/prebuilt -czf target/release/deno_src.tar.gz -C .. deno
+        run: echo "::set-output name=ref::$(git rev-parse HEAD)
 
       - name: Install rust
         uses: actions-rs/toolchain@v1
@@ -67,7 +61,6 @@ jobs:
         run: |
           zip -r deno-x86_64-unknown-linux-gnu.zip deno
           zip -r denort-x86_64-unknown-linux-gnu.zip denort
-          ./deno types > lib.deno.d.ts
 
       - name: Prep mac release
         if: runner.os == 'macOS'
@@ -94,8 +87,6 @@ jobs:
             target/release/denort-x86_64-unknown-linux-gnu.zip
             target/release/denort-x86_64-pc-windows-msvc.zip
             target/release/denort-x86_64-apple-darwin.zip
-            target/release/deno_src.tar.gz
-            target/release/lib.deno.d.ts
           retention-days: 7
 
   test:
@@ -137,6 +128,12 @@ jobs:
       - name: Get release info
         id: release
         run: echo "::set-output name=ref::$(echo ${GITHUB_REF#refs/*/})"
+
+      - name: Create source tarball
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p target/release
+          tar --exclude=.cargo_home --exclude=".git*" --exclude=target --exclude=third_party/prebuilt -czf target/release/deno_src.tar.gz -C .. deno
 
       - name: Install rust
         uses: actions-rs/toolchain@v1
@@ -389,11 +386,7 @@ jobs:
           path: ./canary
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: denoland
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
+        run: echo ${{ needs.build.outputs.ref }}
 
       - name: Upload Builds
         run: ls -lh ./canary
@@ -413,11 +406,7 @@ jobs:
           path: ./stable
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: denoland
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
+        run: echo ${{ needs.build.outputs.ref }}
 
       - name: Upload Builds
         run: ls -lh ./stable
