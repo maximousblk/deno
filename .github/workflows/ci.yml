@@ -113,17 +113,10 @@ jobs:
         uses: actions/download-artifact@v2
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@master
-        with:
-          project_id: denoland
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
+        run: ls -lh artifacts
 
       - name: Upload Builds
-        run: |
-          gsutil cp ./artifacts/*.zip gs://dl.deno.land/${{ needs.build.outputs.type }}/${{ needs.build.outputs.ref }}/
-          echo ${{ needs.build.outputs.ref }} > ${{ needs.build.outputs.type }}-latest.txt
-          gsutil cp ${{ needs.build.outputs.type }}-latest.txt gs://dl.deno.land/${{ needs.build.outputs.type }}-latest.txt
+        run: echo ref ${{ needs.build.outputs.ref }}, sha ${{ needs.build.outputs.type }}
 
       - name: Upload release to GitHub
         uses: softprops/action-gh-release@v1
