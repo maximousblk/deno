@@ -35,7 +35,7 @@ jobs:
 
       - name: Get release info
         id: release
-        run: echo "::set-output name=ref::$(git rev-parse HEAD)
+        run: echo "::set-output name=ref::$(git rev-parse HEAD)"
 
       - name: Create source tarball
         if: runner.os == 'Linux'
