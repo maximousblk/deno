@@ -90,7 +90,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: artifacts
+          name: canary
           path: |
             target/release/deno-x86_64-unknown-linux-gnu.zip
             target/release/deno-x86_64-pc-windows-msvc.zip
@@ -101,36 +101,6 @@ jobs:
             target/release/deno_src.tar.gz
             target/release/lib.deno.d.ts
           retention-days: 7
-
-  release:
-    if: github.repository == 'maximousblk/deno' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v2
-
-      - name: Setup gcloud
-        run: ls -lh artifacts
-
-      - name: Upload Builds
-        run: echo ref ${{ needs.build.outputs.ref }}, sha ${{ needs.build.outputs.type }}
-
-      - name: Upload release to GitHub
-        uses: softprops/action-gh-release@v1
-        if: needs.build.outputs.type == 'release'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            artifacts/deno-x86_64-unknown-linux-gnu.zip
-            artifacts/deno-x86_64-pc-windows-msvc.zip
-            artifacts/deno-x86_64-apple-darwin.zip
-            artifacts/lib.deno.d.ts
-            artifacts/deno_src.tar.gz
-          draft: true
 
   test:
     name: test / ${{ matrix.kind }} / ${{ matrix.os }}
@@ -236,6 +206,44 @@ jobs:
         run: |
           deno run --unstable --allow-write --allow-read --allow-net --allow-env --allow-run ./tools/wpt.ts setup
           deno run --unstable --allow-write --allow-read --allow-net --allow-env --allow-run ./tools/wpt.ts run --quiet ${{ matrix.kind == 'release' && '--release' || '' }}
+
+      - name: Prep linux release
+        if: matrix.kind == 'release' && runner.os == 'Linux'
+        working-directory: target/release
+        run: |
+          zip -r deno-x86_64-unknown-linux-gnu.zip deno
+          zip -r denort-x86_64-unknown-linux-gnu.zip denort
+          ./deno types > lib.deno.d.ts
+
+      - name: Prep mac release
+        if: matrix.kind == 'release' && runner.os == 'macOS'
+        working-directory: target/release
+        run: |
+          zip -r deno-x86_64-apple-darwin.zip deno
+          zip -r denort-x86_64-apple-darwin.zip denort
+
+      - name: Prep windows release
+        if: matrix.kind == 'release' && runner.os == 'Windows'
+        working-directory: target/release
+        run: |
+          Compress-Archive -CompressionLevel Optimal -Force -Path deno.exe -DestinationPath deno-x86_64-pc-windows-msvc.zip
+          Compress-Archive -CompressionLevel Optimal -Force -Path denort.exe -DestinationPath denort-x86_64-pc-windows-msvc.zip
+
+      - name: Upload Artifacts
+        if: matrix.kind == 'release'
+        uses: actions/upload-artifact@v2
+        with:
+          name: stable
+          path: |
+            target/release/deno-x86_64-unknown-linux-gnu.zip
+            target/release/deno-x86_64-pc-windows-msvc.zip
+            target/release/deno-x86_64-apple-darwin.zip
+            target/release/denort-x86_64-unknown-linux-gnu.zip
+            target/release/denort-x86_64-pc-windows-msvc.zip
+            target/release/denort-x86_64-apple-darwin.zip
+            target/release/deno_src.tar.gz
+            target/release/lib.deno.d.ts
+          retention-days: 7
 
   lint:
     runs-on: ubuntu-latest
@@ -362,3 +370,65 @@ jobs:
         run: |
           cat /proc/cpuinfo
           cat /proc/meminfo
+
+  release-canary:
+    name: release / canary
+    if: github.repository == 'maximousblk/deno' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: canary
+          path: ./canary
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: denoland
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Upload Builds
+        run: ls -lh ./canary
+
+  release-stable:
+    name: release / stable
+    if: github.repository == 'maximousblk/deno' && startsWith(github.ref, 'refs/tags/')
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: stable
+          path: ./stable
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: denoland
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Upload Builds
+        run: ls -lh ./stable
+
+      - name: Release to GitHub
+        uses: softprops/action-gh-release@v1
+        if: needs.build.outputs.type == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            stable/deno-x86_64-unknown-linux-gnu.zip
+            stable/deno-x86_64-pc-windows-msvc.zip
+            stable/deno-x86_64-apple-darwin.zip
+            stable/lib.deno.d.ts
+            stable/deno_src.tar.gz
+          draft: true
