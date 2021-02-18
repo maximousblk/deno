@@ -38,7 +38,7 @@ jobs:
         id: release
         run: |
           echo "::set-output name=type::${{ github.ref == 'refs/heads/master' && 'canary' || startsWith(github.ref, 'refs/tags/') && 'release' }}"
-          echo "::set-output name=type::$(echo ${{ github.ref == 'refs/heads/master' && '$(git rev-parse HEAD)' || startsWith(github.ref, 'refs/tags/') && '${GITHUB_REF#refs/*/}' }})"
+          echo "::set-output name=ref::$(echo ${{ github.ref == 'refs/heads/master' && '$(git rev-parse HEAD)' || startsWith(github.ref, 'refs/tags/') && '${GITHUB_REF#refs/*/}' }})"
 
       - name: Create source tarball
         if: runner.os == 'Linux'
@@ -119,22 +119,15 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
 
-      - name: Upload canary Builds
+      - name: Upload Builds
         run: |
-          gsutil cp ./artifacts/*.zip gs://dl.deno.land/canary/${{ needs.build.outputs.commit }}/
-          echo ${{ needs.build.outputs.commit }} > canary-latest.txt
-          gsutil cp canary-latest.txt gs://dl.deno.land/canary-latest.txt
-
-      - name: Upload release Builds
-        if: startsWith(needs.build.outputs.tag, 'v')
-        run: |
-          gsutil cp ./artifacts/*.zip gs://dl.deno.land/release/${{ needs.build.outputs.tag }}/
-          echo ${{ needs.build.outputs.tag }} > release-latest.txt
-          gsutil cp release-latest.txt gs://dl.deno.land/release-latest.txt
+          gsutil cp ./artifacts/*.zip gs://dl.deno.land/${{ needs.build.outputs.type }}/${{ needs.build.outputs.ref }}/
+          echo ${{ needs.build.outputs.ref }} > ${{ needs.build.outputs.type }}-latest.txt
+          gsutil cp ${{ needs.build.outputs.type }}-latest.txt gs://dl.deno.land/${{ needs.build.outputs.type }}-latest.txt
 
       - name: Upload release to GitHub
         uses: softprops/action-gh-release@v1
-        if: startsWith(needs.build.outputs.tag, 'v')
+        if: needs.build.outputs.type == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
