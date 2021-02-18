@@ -38,7 +38,7 @@ jobs:
         id: release
         run: |
           echo "::set-output name=type::${{ github.ref == 'refs/heads/master' && 'canary' || startsWith(github.ref, 'refs/tags/') && 'release' }}"
-          echo "::set-output name=ref::$(echo ${{ github.ref == 'refs/heads/master' && '$(git rev-parse HEAD)' || startsWith(github.ref, 'refs/tags/') && '${GITHUB_REF#refs/*/}' }})"
+          echo "::set-output name=ref::${{ github.ref == 'refs/heads/master' && '$(git rev-parse HEAD)' || startsWith(github.ref, 'refs/tags/') && '$(echo ${GITHUB_REF#refs/*/})' }}"
 
       - name: Create source tarball
         if: runner.os == 'Linux'
