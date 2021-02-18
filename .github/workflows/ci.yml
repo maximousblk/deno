@@ -51,7 +51,6 @@ jobs:
           toolchain: 1.50.0
 
       - name: Configure canary build
-        if: github.repository == 'denoland/deno' && steps.release.outputs.type == 'canary'
         shell: bash
         run: echo 'DENO_CANARY=true' >> $GITHUB_ENV
 
@@ -425,7 +424,6 @@ jobs:
 
       - name: Release to GitHub
         uses: softprops/action-gh-release@v1
-        if: needs.build.outputs.type == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
